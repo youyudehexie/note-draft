@@ -19,11 +19,12 @@
 ###pomelo.on(event, cb)
 
     //update user list
-  pomelo.on('onAdd', function(data) {
-		var user = data.user;
-		tip('online', user);
-		addUser(user);
-	});
+    pomelo.on('onAdd', function(data) {
+       var user = data.user;
+       tip('online', user);
+       addUser(user);
+    });
+
 
 监听Pomelo发送的事件
 
