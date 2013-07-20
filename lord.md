@@ -9,7 +9,7 @@ js/ui/main.js
         addEvents();  //监听登录事件,点击登录后触发 clientManager.entry 函数
     }
 
-   function addEvents(){
+	 function addEvents(){
 	    document.getElementById('login').addEventListener('click', clientManager.entry, false);   //用户进入
 	    document.getElementById('heroSelectBtn').addEventListener('click', clientManager.register, false);  //用户注册处理
 	}
@@ -165,7 +165,7 @@ gameMsgHandler
  
 + onChangeArea  改变的Area服务器，去到另外一张地图
 + onAddEntities 服务器通知客户端添加或删除实物
-+ onDropItems 响应跌下来的装备
++ onDropItems 任务奖励，奖品相关
 + onRemoveEntities 移除实物
 + onMove 移动行为
 + onPathCheckout 更新移动路线
@@ -395,21 +395,347 @@ app/domain/world.js
 			items[e.entityId] = e.entityId;
 		}
 	
-		aoi.addObject({id:e.entityId, type:e.type}, {x: e.x, y: e.y});
+		aoi.addObject({id:e.entityId, type:e.type}, {x: e.x, y: e.y}); //aoi里 添加 对象，发送 add事件
 		return true;
 	};
 
++ PLAYER 玩家信息
++ MOB 怪物
++ NPC NPC信息
++ ITEM 状态栏
++ EQUIPMENT 装备
 
-##addEvent
 
+##addEvent 基于事件的AOI
+
+	//Add event for aoi
+	exp.addEvent = function(aoi){
+		aoi.on('add', function(params){
+			switch(params.type){
+				case EntityType.PLAYER:
+					onPlayerAdd(params);
+					break;
+				case EntityType.MOB:
+					onMobAdd(params);
+					break;
+			}
+		});
+	
+		aoi.on('remove', function(params){
+			switch(params.type){
+				case EntityType.PLAYER:
+					onPlayerRemove(params);
+					break;
+				case EntityType.MOB:
+					break;
+			}
+		});
+	
+		aoi.on('update', function(params){
+			switch(params.type){
+				case EntityType.PLAYER:
+					onObjectUpdate(params);
+					break;
+				case EntityType.MOB:
+					onObjectUpdate(params);
+					break;
+			}
+		});
+	
+		aoi.on('updateWatcher', function(params) {
+			switch(params.type) {
+				case EntityType.PLAYER:
+					onPlayerUpdate(params);
+					break;
+			}
+		});
+	};
 
 ##channelService
 
 
 ## aoi.addWatcher()
 
+## getArea
 
 
+## aiManager.addCharter
+	/**
+	 * Add a character into ai manager.
+	 * Add a brain to the character if the type is mob.
+	 * Start the tick if it has not started yet.
+	 */
+
+##客户端addEntity 简单工厂
+
+
+
+##数组
+players[id] 用户的实体ID，
+users[userID] 普通用户ID
+items [entityId] 状态栏
+
+##Model
+
+###Area
+
++ entities
++ players
++ map
+
++ skch
++ gd
++ gv
+
+###Map
+
++ data
++ node
++ name
++ scene
++ initPos
++ width
++ height
++ moveAnimation
++ weightMap
++ initMapData
+
+##area.playerHandler.changeView
+
+
+##Area
+###area.run
+
+	pro.run = function(){
+		setTimeout(function() {
+			new TimeSync();
+		}, 1000);
+	}
+
+
+每1000毫秒，执行TimeSync时间与的延时状态
+
+	/**
+	 * Module dependencies 
+	 */
+
+	var pomelo = window.pomelo;
+	var app = require('app');
+	var delayTime = 0;
+	var TIME_OUT = 60 * 1000; 
+		
+	var timeSync = function() {
+		getDelayTime();
+		setInterval(function() {
+			getDelayTime();
+		}, TIME_OUT);
+	};
+
+	var getDelayTime = function() {
+		var beforeTime = new Date().getTime();
+		pomelo.request('connector.timeSyncHandler.timeSync',{clientTime: beforeTime},function(result) {
+			if (result.code === 200) {
+				var afterTime = new Date().getTime();
+				delayTime = (afterTime - beforeTime)/2;	
+				app.setDelayTime(delayTime);
+			}
+		});
+	};
+
+connector.timeSyncHandler.timeSync 服务器端函数
+
+	handler.timeSync = function(msg, session, next) {
+	  next(null, {code: consts.MESSAGE.RES});
+	};
+
+##Area初始化
+
+###addComponentToEntity
+
+
+直接发送消息，立即返回，计算与服务器的延时
+计算征数
+
+##动作管理
+	exp.run = function () {
+	  setInterval(tick, 100);
+	};
+	
+	function tick() {
+	  //Update mob zones
+	  for(var key in area.zones()) {
+	    area.zones()[key].update();
+	  }
+	
+	  //Update all the items
+	  for(var id in area.items()) {
+	    var item = area.entities()[id];
+	    item.update();
+	
+	    if(item.died) {
+	      messageService.pushMessage('onRemoveEntities', {entities: [id]});
+	      area.removeEntity(id);
+	    }
+	  }
+	
+	  //run all the action
+	  area.actionManager().update();
+	
+	  area.aiManager().update();
+	
+	  area.patrolManager().update();
+	}
+
+##动作系
+	handler.move = function(msg, session, next) {
+	}
+	
+	timer.addAction(action)
+
+
+	exp.run = function () {
+	  setInterval(tick, 100);
+	};
+	
+	function tick() {
+	  //Update mob zones
+	  for(var key in area.zones()) {
+	    area.zones()[key].update();
+	  }
+	
+	  //Update all the items
+	  for(var id in area.items()) {
+	    var item = area.entities()[id];
+	    item.update();
+	
+	    if(item.died) {
+	      messageService.pushMessage('onRemoveEntities', {entities: [id]});
+	      area.removeEntity(id);
+	    }
+	  }
+	
+	  //run all the action
+	  area.actionManager().update();
+	
+	  area.aiManager().update();
+	
+	  area.patrolManager().update();
+	}
+
+##pushMessageByAOI
+
+	exp.pushMessageByAOI = function (msg, pos, ignoreList) {
+	  var uids = timer.getWatcherUids(pos, [EntityType.PLAYER], ignoreList);
+	
+	  if (uids.length > 0) {
+	    exp.pushMessageByUids(uids, msg.route, msg);
+	  }
+	};
+
+	exp.pushMessageByUids = function (uids, route, msg) {
+		pomelo.app.get('channelService').pushMessageByUids(route, msg, uids, errHandler);
+	};
+
+##pushMessageByUids
+
+	/**
+	 * Push message by uids.
+	 * Group the uids by group. ignore any uid if sid not specified.
+	 *
+	 * @param {String} route message route
+	 * @param {Object} msg message that would be sent to client
+	 * @param {Array} uids the receiver info list, [{uid: userId, sid: frontendServerId}]
+	 * @param {Function} cb cb(err)
+	 * @memberOf ChannelService
+	 */
+	ChannelService.prototype.pushMessageByUids = function(route, msg, uids, cb) {
+	  if(typeof route !== 'string') {
+	    cb = uids;
+	    uids = msg;
+	    msg = route;
+	    route = msg.route;
+	  }
+	
+	  if(!uids || uids.length === 0) {
+	    utils.invokeCallback(cb, new Error('uids should not be empty'));
+	    return;
+	  }
+	  var groups = {}, record;
+	  for(var i=0, l=uids.length; i<l; i++) {
+	    record = uids[i];
+	    add(record.uid, record.sid, groups);
+	  }
+	
+	  sendMessageByGroup(this, route, msg, groups, cb);
+	};
+
+##sendMessageByGroup
+	
+	/**
+	 * push message by group
+	 *
+	 * @param route {String} route route message
+	 * @param msg {Object} message that would be sent to client
+	 * @param groups {Object} grouped uids, , key: sid, value: [uid]
+	 * @param cb {Function} cb(err)
+	 *
+	 * @api private
+	 */
+	var sendMessageByGroup = function(channelService, route, msg, groups, cb) {
+	  var app = channelService.app;
+	  var namespace = 'sys';
+	  var service = 'channelRemote';
+	  var method = 'pushMessage';
+	  var count = utils.size(groups);
+	  var successFlag = false;
+	  var failIds = [];
+	
+	  if(count === 0) {
+	    // group is empty
+	    utils.invokeCallback(cb);
+	    return;
+	  }
+	
+	  var latch = countDownLatch.createCountDownLatch(count, function(){
+	    if(!successFlag) {
+	      utils.invokeCallback(cb, new Error('all uids push message fail'));
+	      return;
+	    }
+	    utils.invokeCallback(cb, null, failIds);
+	  });
+	
+	  var rpcCB = function(err, fails) {
+	    if(err) {
+	      logger.error('[pushMessage] fail to dispatch msg, err:' + err.stack);
+	      latch.done();
+	      return;
+	    }
+	    if(fails) {
+	      failIds = failIds.concat(fails);
+	    }
+	    successFlag = true;
+	    latch.done();
+	  };
+	
+	  for(var sid in groups) {
+	    app.rpcInvoke(sid, {namespace: namespace, service: service,
+	      method: method, args: [route, msg, groups[sid]]}, rpcCB);
+	  }
+	};
+
+
+##行为树
+如果要让游戏里的角色或者NPC能执行预设的AI逻辑，最简单的用IF..ELSE...神器既可以实现，但是再复杂的一般用经典的状态机来切换状态，但是编辑器写起来比较麻烦。相对的，行为树（Behavior Tree）理解和编辑起来就非常简单了。行为树，其实也是一种有限状态机，只不过形式上分层呈树结构，人称分层有限状态机（HFSM）。
+
+行为树主要用四种节点（还有诸如：装饰节点等其他能更丰富功能的节点）来描述行为逻辑，顺序节点、选择节点、条件节点、执行节点。每一棵行为树表示一个AI逻辑，要执行这个AI逻辑，需要从根节点开始遍历执行整棵树；遍历执行的过程中，父节点根据其自身类别选择需要执行的子节点并执行之，子节点执行完后将执行结果返回给父节点。节点从结构上分为两类：组合节点、叶节点，所谓组合节点就是出度大于0的节点，叶节点一般用来放置执行逻辑和条件判断。
+
+--顺序节点（Sequence）：组合节点，顺序执行子节点，只要碰到一个子节点返回FALSE，则返回FALSE；否则返回TRUE。
+
+--选择节点（Selector）：组合节点，顺序执行子节点，只要碰到一个子节点返回TRUE，则返回TRUE；否则返回FALSE。
+
+--条件节点（Condition）：叶节点，执行条件判断，返回判断结果。
+
+--执行节点（Action）：叶节点，执行设定的动作，一般返回TRUE。
 
 ##FAQ
 
